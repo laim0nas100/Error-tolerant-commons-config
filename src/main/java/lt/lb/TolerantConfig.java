@@ -71,6 +71,10 @@ public interface TolerantConfig<Conf extends ImmutableConfiguration> extends Imm
             return new KDP(key, defaultVal, func);
         }
 
+        public static KDP<Boolean> of(String key, Boolean defaultVal) {
+            return of(key, defaultVal, t -> t.getBoolean(key, defaultVal));
+        }
+
         public static KDP<String> of(String key, String defaultVal) {
             return of(key, defaultVal, t -> t.getString(key, defaultVal));
         }
