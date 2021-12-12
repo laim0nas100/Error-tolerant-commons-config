@@ -6,6 +6,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
+import java.util.NoSuchElementException;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Properties;
@@ -349,8 +350,8 @@ public interface TolerantConfig<Conf extends ImmutableConfiguration> extends Imm
         return Optional.ofNullable(getDelegated()).map(func).orElseGet(ifNot);
     }
 
-    public default <T> T getOrThrow(Function<Conf, T> func) {
-        return Optional.ofNullable(getDelegated()).map(func).get();
+    public default <T> T getOrThrow(String key, Function<Conf, T> func) {
+        return Optional.ofNullable(getDelegated()).map(func).orElseThrow(() -> new NoSuchElementException(key));
     }
 
     @Override
@@ -390,7 +391,7 @@ public interface TolerantConfig<Conf extends ImmutableConfiguration> extends Imm
 
     @Override
     public default boolean getBoolean(String key) {
-        return getOrThrow(p -> p.getBoolean(key));
+        return getOrThrow(key, p -> p.getBoolean(key));
     }
 
     @Override
@@ -405,7 +406,7 @@ public interface TolerantConfig<Conf extends ImmutableConfiguration> extends Imm
 
     @Override
     public default byte getByte(String key) {
-        return getOrThrow(p -> p.getByte(key));
+        return getOrThrow(key, p -> p.getByte(key));
     }
 
     @Override
@@ -420,7 +421,7 @@ public interface TolerantConfig<Conf extends ImmutableConfiguration> extends Imm
 
     @Override
     public default double getDouble(String key) {
-        return getOrThrow(p -> p.getDouble(key));
+        return getOrThrow(key, p -> p.getDouble(key));
     }
 
     @Override
@@ -435,7 +436,7 @@ public interface TolerantConfig<Conf extends ImmutableConfiguration> extends Imm
 
     @Override
     public default float getFloat(String key) {
-        return getOrThrow(p -> p.getFloat(key));
+        return getOrThrow(key, p -> p.getFloat(key));
     }
 
     @Override
@@ -450,7 +451,7 @@ public interface TolerantConfig<Conf extends ImmutableConfiguration> extends Imm
 
     @Override
     public default int getInt(String key) {
-        return getOrThrow(p -> p.getInt(key));
+        return getOrThrow(key, p -> p.getInt(key));
     }
 
     @Override
@@ -465,7 +466,7 @@ public interface TolerantConfig<Conf extends ImmutableConfiguration> extends Imm
 
     @Override
     public default long getLong(String key) {
-        return getOrThrow(p -> p.getLong(key));
+        return getOrThrow(key, p -> p.getLong(key));
     }
 
     @Override
@@ -480,7 +481,7 @@ public interface TolerantConfig<Conf extends ImmutableConfiguration> extends Imm
 
     @Override
     public default short getShort(String key) {
-        return getOrThrow(p -> p.getShort(key));
+        return getOrThrow(key, p -> p.getShort(key));
     }
 
     @Override
@@ -495,7 +496,7 @@ public interface TolerantConfig<Conf extends ImmutableConfiguration> extends Imm
 
     @Override
     public default BigDecimal getBigDecimal(String key) {
-        return getOrThrow(p -> p.getBigDecimal(key));
+        return getOrThrow(key, p -> p.getBigDecimal(key));
     }
 
     @Override
@@ -505,7 +506,7 @@ public interface TolerantConfig<Conf extends ImmutableConfiguration> extends Imm
 
     @Override
     public default BigInteger getBigInteger(String key) {
-        return getOrThrow(p -> p.getBigInteger(key));
+        return getOrThrow(key, p -> p.getBigInteger(key));
     }
 
     @Override
@@ -515,7 +516,7 @@ public interface TolerantConfig<Conf extends ImmutableConfiguration> extends Imm
 
     @Override
     public default String getString(String key) {
-        return getOrThrow(p -> p.getString(key));
+        return getOrThrow(key, p -> p.getString(key));
     }
 
     @Override
@@ -525,7 +526,7 @@ public interface TolerantConfig<Conf extends ImmutableConfiguration> extends Imm
 
     @Override
     public default String getEncodedString(String key, ConfigurationDecoder decoder) {
-        return getOrThrow(p -> p.getEncodedString(key, decoder));
+        return getOrThrow(key, p -> p.getEncodedString(key, decoder));
     }
 
     public default String getEncodedString(String key, ConfigurationDecoder decoder, String defaultValue) {
@@ -534,7 +535,7 @@ public interface TolerantConfig<Conf extends ImmutableConfiguration> extends Imm
 
     @Override
     public default String getEncodedString(String key) {
-        return getOrThrow(p -> p.getEncodedString(key));
+        return getOrThrow(key, p -> p.getEncodedString(key));
     }
 
     public default String getEncodedString(String key, String defaultValue) {
@@ -543,7 +544,7 @@ public interface TolerantConfig<Conf extends ImmutableConfiguration> extends Imm
 
     @Override
     public default String[] getStringArray(String key) {
-        return getOrThrow(p -> p.getStringArray(key));
+        return getOrThrow(key, p -> p.getStringArray(key));
     }
 
     public default String[] getStringArray(String key, String[] defaultValue) {
@@ -552,7 +553,7 @@ public interface TolerantConfig<Conf extends ImmutableConfiguration> extends Imm
 
     @Override
     public default List getList(String key) {
-        return getOrThrow(p -> p.getList(key));
+        return getOrThrow(key, p -> p.getList(key));
     }
 
     @Override
@@ -562,7 +563,7 @@ public interface TolerantConfig<Conf extends ImmutableConfiguration> extends Imm
 
     @Override
     public default <T> T get(Class<T> cls, String key) {
-        return getOrThrow(p -> p.get(cls, key));
+        return getOrThrow(key, p -> p.get(cls, key));
     }
 
     @Override
@@ -572,7 +573,7 @@ public interface TolerantConfig<Conf extends ImmutableConfiguration> extends Imm
 
     @Override
     public default Object getArray(Class<?> cls, String key) {
-        return getOrThrow(p -> p.getArray(cls, key));
+        return getOrThrow(key, p -> p.getArray(cls, key));
     }
 
     @Override
@@ -582,7 +583,7 @@ public interface TolerantConfig<Conf extends ImmutableConfiguration> extends Imm
 
     @Override
     public default <T> List<T> getList(Class<T> cls, String key) {
-        return getOrThrow(p -> p.getList(cls, key));
+        return getOrThrow(key, p -> p.getList(cls, key));
     }
 
     @Override
@@ -592,7 +593,7 @@ public interface TolerantConfig<Conf extends ImmutableConfiguration> extends Imm
 
     @Override
     public default <T> Collection<T> getCollection(Class<T> cls, String key, Collection<T> target) {
-        return getOrThrow(p -> p.getCollection(cls, key, target));
+        return getOrThrow(key, p -> p.getCollection(cls, key, target));
     }
 
     @Override
@@ -640,7 +641,7 @@ public interface TolerantConfig<Conf extends ImmutableConfiguration> extends Imm
 
         @Override
         public default ExpressionEngine getExpressionEngine() {
-            return getOrThrow(p -> p.getExpressionEngine());
+            return getOrThrow("ExpressionEngine is not configured", p -> p.getExpressionEngine());
         }
 
         @Override
