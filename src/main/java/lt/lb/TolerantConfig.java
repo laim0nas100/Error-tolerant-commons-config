@@ -28,6 +28,110 @@ import org.apache.commons.configuration2.tree.ExpressionEngine;
  */
 public interface TolerantConfig<Conf extends ImmutableConfiguration> extends ImmutableConfiguration {
 
+    public static interface KeyDefaultProperty<T> {
+
+        public String getKey();
+
+        public T getDefault();
+
+        public T resolve(TolerantConfig config);
+    }
+
+    public static class KDP<T> implements TolerantConfig.KeyDefaultProperty<T> {
+
+        public final String key;
+        public final T defaultVal;
+
+        protected final ConversionTolerantFunction<TolerantConfig, ? extends T> func;
+
+        public KDP(String key, T defaultVal, ConversionTolerantFunction<TolerantConfig, ? extends T> func) {
+            this.key = Objects.requireNonNull(key);
+            this.defaultVal = defaultVal;
+            this.func = Objects.requireNonNull(func);
+        }
+
+        @Override
+        public String getKey() {
+            return key;
+        }
+
+        @Override
+        public T getDefault() {
+            return defaultVal;
+        }
+
+        @Override
+        public T resolve(TolerantConfig prop) {
+            Objects.requireNonNull(prop, "TolerantConfig is null");
+            T resolved = func.apply(prop);
+            return resolved == null ? getDefault() : resolved;
+        }
+
+        public static <T> KDP<T> of(String key, T defaultVal, ConversionTolerantFunction<TolerantConfig, ? extends T> func) {
+            return new KDP(key, defaultVal, func);
+        }
+
+        public static KDP<String> of(String key, String defaultVal) {
+            return of(key, defaultVal, t -> t.getString(key, defaultVal));
+        }
+
+        public static KDP<Integer> of(String key, Integer defaultVal) {
+            return of(key, defaultVal, t -> t.getInteger(key, defaultVal));
+        }
+
+        public static KDP<Long> of(String key, Long defaultVal) {
+            return of(key, defaultVal, t -> t.getLong(key, defaultVal));
+        }
+
+        public static KDP<Float> of(String key, Float defaultVal) {
+            return of(key, defaultVal, t -> t.getFloat(key, defaultVal));
+        }
+
+        public static KDP<Double> of(String key, Double defaultVal) {
+            return of(key, defaultVal, t -> t.getDouble(key, defaultVal));
+        }
+
+        public static KDP<BigInteger> of(String key, BigInteger defaultVal) {
+            return of(key, defaultVal, t -> t.getBigInteger(key, defaultVal));
+        }
+
+        public static KDP<BigDecimal> of(String key, BigDecimal defaultVal) {
+            return of(key, defaultVal, t -> t.getBigDecimal(key, defaultVal));
+        }
+
+        public static KDP<String[]> of(String key, String[] defaultVal) {
+            return of(key, defaultVal, t -> t.getStringArray(key, defaultVal));
+        }
+
+        public static <T> KDP<List<T>> of(String key, Class<T> cls, List<T> defaultVal) {
+            Objects.requireNonNull(cls);
+            return of(key, defaultVal, t -> t.getList(cls, key, defaultVal));
+        }
+
+        public static KDP<List> of(String key, List defaultVal) {
+            return of(key, defaultVal, t -> t.getList(key, defaultVal));
+        }
+
+        public static <T, C extends Collection<T>> KDP<C> of(String key, Class<T> cls, C defaultVal, Supplier<C> constructor) {
+            Objects.requireNonNull(cls);
+            Objects.requireNonNull(constructor);
+            return of(key, defaultVal, t -> {
+                C target = constructor.get();
+                t.getCollection(cls, key, target, defaultVal);
+                return target;
+            });
+        }
+
+        public static <T> KDP<T> of(String key, Class<T> cls, T defaultVal) {
+            Objects.requireNonNull(cls);
+            return of(key, defaultVal, (t) -> {
+                TolerantConfig<ImmutableConfiguration> tol = t;
+                return tol.get(cls, key, defaultVal);
+            });
+        }
+
+    }
+
     public static final TolerantConfig empty = () -> null;
 
     public static TolerantConfig empty() {
@@ -122,14 +226,14 @@ public interface TolerantConfig<Conf extends ImmutableConfiguration> extends Imm
 
     }
 
-    public static interface KeyedProperty {
+    public static interface KeyedProperty<T> {
 
         public String getKey();
 
-        public Object getValue();
+        public T getValue();
     }
 
-    public static class KP implements KeyedProperty {
+    public static class KP<T> implements KeyedProperty<Object> {
 
         private final String key;
         private final Object value;
@@ -190,6 +294,11 @@ public interface TolerantConfig<Conf extends ImmutableConfiguration> extends Imm
             return Collections.emptyIterator();
         }
         return new KPIterator(delegated.getKeys(prefix), delegated);
+    }
+
+    public default <T> T getByProp(KeyDefaultProperty<T> prop) {
+        Objects.requireNonNull(prop, "KeyDefaultProperty must be supplied");
+        return prop.resolve(this);
     }
 
     public default boolean getOr(String key, boolean or) {
@@ -484,7 +593,7 @@ public interface TolerantConfig<Conf extends ImmutableConfiguration> extends Imm
 
     @Override
     public default <T> Collection<T> getCollection(Class<T> cls, String key, Collection<T> target, Collection<T> defaultValue) {
-        return getOr(p -> p.getCollection(cls, key, defaultValue), defaultValue);
+        return getOr(p -> p.getCollection(cls, key, target, defaultValue), defaultValue);
     }
 
     @Override
