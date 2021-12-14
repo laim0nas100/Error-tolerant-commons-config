@@ -29,13 +29,32 @@ import org.apache.commons.configuration2.tree.ExpressionEngine;
  */
 public interface TolerantConfig<Conf extends ImmutableConfiguration> extends ImmutableConfiguration {
 
-    public static interface KeyDefaultProperty<T> {
+    public static interface Key<T> {
 
         public String getKey();
+    }
 
-        public T getDefault();
+    public static interface KeyVal<T> extends Key<T> {
+
+        public T getValue();
+    }
+
+    public static interface KeyProperty<T> extends Key<T> {
 
         public T resolve(TolerantConfig config);
+
+        public default T resolveThrowIfNull(TolerantConfig config) {
+            T resolve = resolve(config);
+            if (resolve == null) {
+                throw new NoSuchElementException(getKey() + " resolves to a null");
+            }
+            return resolve;
+        }
+    }
+
+    public static interface KeyDefaultProperty<T> extends KeyProperty<T> {
+
+        public T getDefault();
     }
 
     public static class KDP<T> implements TolerantConfig.KeyDefaultProperty<T> {
@@ -231,21 +250,14 @@ public interface TolerantConfig<Conf extends ImmutableConfiguration> extends Imm
 
     }
 
-    public static interface KeyedProperty<T> {
-
-        public String getKey();
-
-        public T getValue();
-    }
-
-    public static class KP<T> implements KeyedProperty<Object> {
+    public static class KP implements KeyVal<Object> {
 
         private final String key;
-        private final Object value;
+        private final Object val;
 
         public KP(String key, Object val) {
             this.key = key;
-            this.value = val;
+            this.val = val;
         }
 
         @Override
@@ -255,7 +267,7 @@ public interface TolerantConfig<Conf extends ImmutableConfiguration> extends Imm
 
         @Override
         public Object getValue() {
-            return value;
+            return val;
         }
 
     }
@@ -285,7 +297,7 @@ public interface TolerantConfig<Conf extends ImmutableConfiguration> extends Imm
 
     public Conf getDelegated();
 
-    public default Iterator<? extends KeyedProperty> getEntries() {
+    public default Iterator<? extends KeyVal> getEntries() {
         ImmutableConfiguration delegated = getDelegated();
         if (delegated == null) {
             return Collections.emptyIterator();
@@ -293,7 +305,7 @@ public interface TolerantConfig<Conf extends ImmutableConfiguration> extends Imm
         return new KPIterator(delegated.getKeys(), delegated);
     }
 
-    public default Iterator<? extends KeyedProperty> getEntries(String prefix) {
+    public default Iterator<? extends KeyVal> getEntries(String prefix) {
         ImmutableConfiguration delegated = getDelegated();
         if (delegated == null) {
             return Collections.emptyIterator();
@@ -301,8 +313,8 @@ public interface TolerantConfig<Conf extends ImmutableConfiguration> extends Imm
         return new KPIterator(delegated.getKeys(prefix), delegated);
     }
 
-    public default <T> T getByProp(KeyDefaultProperty<T> prop) {
-        Objects.requireNonNull(prop, "KeyDefaultProperty must be supplied");
+    public default <T> T getByProp(KeyProperty<T> prop) {
+        Objects.requireNonNull(prop, "KeyProperty must be supplied");
         return prop.resolve(this);
     }
 
