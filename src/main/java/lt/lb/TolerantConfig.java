@@ -29,22 +29,45 @@ import org.apache.commons.configuration2.tree.ExpressionEngine;
  */
 public interface TolerantConfig<Conf extends ImmutableConfiguration> extends ImmutableConfiguration {
 
+    /**
+     * Static String key
+     *
+     * @param <T>
+     */
     public static interface Key<T> {
 
+        /**
+         *
+         * @return key
+         */
         public String getKey();
     }
 
+    /**
+     * Basically like an entry with String keys.
+     *
+     * @param <T>
+     */
     public static interface KeyVal<T> extends Key<T> {
 
+        /**
+         *
+         * @return value
+         */
         public T getValue();
     }
 
+    /**
+     * Property that can resolve values
+     *
+     * @param <T>
+     */
     public static interface KeyProperty<T> extends Key<T> {
 
-        public T resolve(TolerantConfig config);
+        public T resolve(TolerantConfig... config);
 
-        public default T resolveThrowIfNull(TolerantConfig config) {
-            T resolve = resolve(config);
+        public default T resolveThrowIfNull(TolerantConfig... prop) {
+            T resolve = resolve(prop);
             if (resolve == null) {
                 throw new NoSuchElementException(getKey() + " resolves to a null");
             }
@@ -52,11 +75,20 @@ public interface TolerantConfig<Conf extends ImmutableConfiguration> extends Imm
         }
     }
 
+    /**
+     * Property that can resolve values and also has a default value
+     *
+     * @param <T>
+     */
     public static interface KeyDefaultProperty<T> extends KeyProperty<T> {
 
         public T getDefault();
     }
 
+    /**
+     * Default implementation of {@link KeyDefaultProperty}
+     * @param <T> 
+     */
     public static class KDP<T> implements TolerantConfig.KeyDefaultProperty<T> {
 
         public final String key;
@@ -81,10 +113,22 @@ public interface TolerantConfig<Conf extends ImmutableConfiguration> extends Imm
         }
 
         @Override
-        public T resolve(TolerantConfig prop) {
-            Objects.requireNonNull(prop, "TolerantConfig is null");
-            T resolved = func.apply(prop);
-            return resolved == null ? getDefault() : resolved;
+        public T resolve(TolerantConfig... prop) {
+            if (prop == null || prop.length == 0) {
+                return getDefault();
+            }
+            for (int i = 0; i < prop.length; i++) {
+                TolerantConfig conf = prop[i];
+                if (conf == null) {
+                    throw new IllegalArgumentException("TolerantConfig at index " + i + " is null");
+                }
+                T resolved = func.apply(conf);
+                if (resolved != null) {
+                    return resolved;
+                }
+
+            }
+            return getDefault();
         }
 
         public static <T> KDP<T> of(String key, T defaultVal, ConversionTolerantFunction<TolerantConfig, ? extends T> func) {
@@ -668,12 +712,12 @@ public interface TolerantConfig<Conf extends ImmutableConfiguration> extends Imm
 
         @Override
         public default TolerantHConfig<Conf> immutableConfigurationAt(String key, boolean supportUpdates) {
-            return (TolerantHConfig<Conf>) getOr(p -> TolerantHConfig.of(p.immutableConfigurationAt(key, supportUpdates)), TolerantHConfig.empty());
+            return (TolerantHConfig) getOr(p -> TolerantHConfig.of(p.immutableConfigurationAt(key, supportUpdates)), TolerantHConfig.empty());
         }
 
         @Override
         public default TolerantHConfig<Conf> immutableConfigurationAt(String key) {
-            return (TolerantHConfig<Conf>) getOr(p -> TolerantHConfig.of(p.immutableConfigurationAt(key)), TolerantHConfig.empty());
+            return (TolerantHConfig) getOr(p -> TolerantHConfig.of(p.immutableConfigurationAt(key)), TolerantHConfig.empty());
         }
 
         @Override
