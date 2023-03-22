@@ -188,46 +188,137 @@ public interface TolerantConfig<Conf extends ImmutableConfiguration> extends Imm
         return getBoolean(key, or);
     }
 
+    /**
+     * Get the property converted to int or return the given default if property
+     * was not present or conversion has failed
+     *
+     * @param key
+     * @param or
+     * @return
+     */
     public default int getOr(String key, int or) {
         return getInt(key, or);
     }
 
+    /**
+     * Get the property converted to long or return the given default if
+     * property was not present or conversion has failed
+     *
+     * @param key
+     * @param or
+     * @return
+     */
     public default long getOr(String key, long or) {
         return getLong(key, or);
     }
 
+    /**
+     * Get the property converted to float or return the given default if
+     * property was not present or conversion has failed
+     *
+     * @param key
+     * @param or
+     * @return
+     */
     public default float getOr(String key, float or) {
         return getFloat(key, or);
     }
 
+    /**
+     * Get the property converted to double or return the given default if
+     * property was not present or conversion has failed
+     *
+     * @param key
+     * @param or
+     * @return
+     */
     public default double getOr(String key, double or) {
         return getDouble(key, or);
     }
 
-    public default String getOr(String key, String or) {
-        return getString(key, or);
-    }
-
+    /**
+     * Get the property converted to BigInteger or return the given default if
+     * property was not present or conversion has failed
+     *
+     * @param key
+     * @param or
+     * @return
+     */
     public default BigInteger getOr(String key, BigInteger or) {
         return getBigInteger(key, or);
     }
 
+    /**
+     * Get the property converted to BigDecimal or return the given default if
+     * property was not present or conversion has failed
+     *
+     * @param key
+     * @param or
+     * @return
+     */
     public default BigDecimal getOr(String key, BigDecimal or) {
         return getBigDecimal(key, or);
     }
 
+    /**
+     * Get the property as String or return the given default if property was
+     * not present
+     *
+     * @param key
+     * @param or
+     * @return
+     */
+    public default String getOr(String key, String or) {
+        return getString(key, or);
+    }
+
+    /**
+     * Get the property converted to String array or return the given default if
+     * property was not present or conversion has failed
+     *
+     * @param key
+     * @param or
+     * @return
+     */
     public default String[] getOr(String key, String[] or) {
         return getStringArray(key, or);
     }
 
+    /**
+     * Get the property converted to specified type using the conversion
+     * function or return the given default if property was not present or
+     * conversion has failed
+     *
+     * @param func
+     * @param ifNot
+     * @return
+     */
     public default <T> T getOr(ConversionTolerantFunction<Conf, T> func, T ifNot) {
         return Optional.ofNullable(getDelegated()).map(func).orElse(ifNot);
     }
 
+    /**
+     * Get the property converted to specified type using the conversion
+     * function or return the given default from a supplier if property was not
+     * present or conversion has failed
+     *
+     * @param func
+     * @param ifNot
+     * @return
+     */
     public default <T> T getOrSup(ConversionTolerantFunction<Conf, T> func, Supplier<? extends T> ifNot) {
         return Optional.ofNullable(getDelegated()).map(func).orElseGet(ifNot);
     }
 
+    /**
+     * Get the property converted to specified type using the conversion
+     * function or throw {@link NoSuchElementException} if property was not
+     * present or conversion has failed
+     *
+     * @param key
+     * @param func
+     * @return
+     */
     public default <T> T getOrThrow(String key, Function<Conf, T> func) {
         return Optional.ofNullable(getDelegated()).map(func).orElseThrow(() -> new NoSuchElementException(key));
     }
