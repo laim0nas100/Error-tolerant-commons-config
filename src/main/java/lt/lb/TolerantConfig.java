@@ -21,6 +21,7 @@ import org.apache.commons.configuration2.ImmutableHierarchicalConfiguration;
 import org.apache.commons.configuration2.ex.ConfigurationException;
 import org.apache.commons.configuration2.ex.ConversionException;
 import org.apache.commons.configuration2.tree.ExpressionEngine;
+import org.apache.commons.lang3.StringUtils;
 
 /**
  *
@@ -484,17 +485,57 @@ public interface TolerantConfig<Conf extends ImmutableConfiguration> extends Imm
     }
 
     /**
+     * Get all current entries and put into a Properties object with full keys
+     * which is then returned.
+     *
+     * @param prefix
+     * @return
+     */
+    public default Properties nonTruncatedPropertySubset(String prefix) {
+        final String final_prefix = prefix + ".";
+        return immutableSubset(prefix).asProperties(k -> {
+            if (k == null) {
+                return null;
+            }
+            if (StringUtils.isBlank(k)) {
+                return prefix;
+            }
+            return final_prefix + k;
+        }, Function.identity());
+    }
+
+    /**
      * Get all current entries and put into a Properties object which is then
      * returned.
      *
      * @return
      */
     public default Properties asProperties() {
+        return asProperties(Function.identity(), Function.identity());
+    }
+
+    /**
+     * Get all current entries and put into a Properties object with key and
+     * object modification function which is then returned.
+     *
+     * Null keys are not inserted
+     *
+     * @param keyMod
+     * @param objectMod
+     * @return
+     */
+    public default Properties asProperties(Function<String, String> keyMod, Function objectMod) {
+        Objects.requireNonNull(keyMod, "Key modification function is empty");
+        Objects.requireNonNull(objectMod, "Object modification function is null");
         Properties props = new Properties();
         Iterator<? extends KeyVal> entries = getEntries();
         while (entries.hasNext()) {
             KeyVal kv = entries.next();
-            props.put(kv.getKey(), kv.getValue());
+            String key = keyMod.apply(kv.getKey());
+            if (key == null) {
+                continue;
+            }
+            props.put(key, objectMod.apply(kv.getValue()));
         }
         return props;
     }
