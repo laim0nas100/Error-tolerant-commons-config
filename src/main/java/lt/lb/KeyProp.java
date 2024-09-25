@@ -4,22 +4,36 @@ import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.EnumSet;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Objects;
+import java.util.Optional;
+import java.util.Set;
 import java.util.function.Function;
 import java.util.function.Supplier;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import lt.lb.TolerantConfig.ConversionTolerantFunction;
 import org.apache.commons.configuration2.ImmutableConfiguration;
+import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.text.StringTokenizer;
+import org.slf4j.LoggerFactory;
+import org.slf4j.Logger;
 
 /**
  *
  * @author laim0nas100
  */
 public abstract class KeyProp {
+
+    static Logger logger = LoggerFactory.getLogger(KeyProp.class);
+
+    public static final String LIST_DELIM = ";";
 
     public static <T> Builder<T> ofDefault(String key, T defaultVal, ConversionTolerantFunction<TolerantConfig, ? extends T> func) {
         Builder<T> builder = new Builder<>(key, func);
@@ -142,6 +156,94 @@ public abstract class KeyProp {
         Objects.requireNonNull(cls, "Collection class is null");
         Builder<Collection<T>> builder = new Builder<>(key, f -> f.getCollection(cls, key, target));
         return builder;
+    }
+
+    public static <C extends Enum<C>> KeyProperty<C> ofEnum(String key, C type) {
+        Objects.requireNonNull(key);
+        Objects.requireNonNull(type);
+        return KeyProp.of(key, type.name())
+                .toCachableDefaultProperty()
+                .map(m -> {
+                    return Optional.ofNullable(m).flatMap(s -> {
+                        Class<C> declaringClass = type.getDeclaringClass();
+                        return enumMatch(declaringClass, s);
+                    }).orElse(type);
+                });
+    }
+
+    public static KeyProperty<List<String>> ofList(String key, String delim, String defaultCol) {
+        Objects.requireNonNull(delim, "List delimiter must not be null");
+        String def = defaultCol == null ? "" : "";
+        return KeyProp.of(key, def)
+                .toCachableDefaultProperty()
+                .map(m -> {
+                    return new StringTokenizer(m, delim)
+                            .getTokenList()
+                            .stream()
+                            .filter(f -> f != null)
+                            .map(s -> s.trim())
+                            .filter(StringUtils::isNotBlank)
+                            .collect(Collectors.toList());
+                });
+    }
+
+    public static KeyProperty<List<String>> ofList(String key, String defaultCol) {
+        return ofList(key, LIST_DELIM, defaultCol);
+    }
+
+    public static KeyProperty<Set<String>> ofSet(String key, String delim, String defaultCol) {
+        Objects.requireNonNull(delim, "List delimiter must not be null");
+        String def = defaultCol == null ? "" : "";
+        return KeyProp.of(key, def)
+                .toCachableDefaultProperty()
+                .map(m -> {
+                    return new StringTokenizer(m, delim)
+                            .getTokenList()
+                            .stream()
+                            .filter(f -> f != null)
+                            .map(s -> s.trim())
+                            .filter(StringUtils::isNotBlank)
+                            .collect(Collectors.toCollection(LinkedHashSet::new));
+                });
+    }
+
+    public static KeyProperty<Set<String>> ofSet(String key, String defaultCol) {
+        return ofSet(key, LIST_DELIM, defaultCol);
+    }
+
+    public static <C extends Enum<C>> KeyProperty<Set<C>> ofEnums(String key, Class<C> type, String values) {
+        return ofEnums(key, type, LIST_DELIM, values);
+    }
+
+    public static <C extends Enum<C>> KeyProperty<Set<C>> ofEnums(String key, Class<C> type, C... values) {
+        return ofEnums(key, type, LIST_DELIM, Stream.of(values).map(m -> m.name()).collect(Collectors.joining(LIST_DELIM)));
+    }
+
+    public static <C extends Enum<C>> Optional<C> enumMatch(Class<C> type, String name) {
+        EnumSet<C> allOf = EnumSet.allOf(type);
+        for (C e : allOf) {
+            if (e.name().equalsIgnoreCase(name)) {
+                return Optional.of(e);
+            }
+        }
+
+        logger.error("Failed to map " + type + " enum not found for name:" + name);
+        return Optional.empty();
+    }
+
+    public static <C extends Enum<C>> KeyProperty<Set<C>> ofEnums(String key, Class<C> type, String delim, String defaultCol) {
+        Objects.requireNonNull(key);
+        Objects.requireNonNull(type);
+        Objects.requireNonNull(delim);
+        String def = defaultCol == null ? "" : "";
+        return ofSet(key, delim, def)
+                .map(m
+                        -> m.stream()
+                        .map(s -> enumMatch(type, s))
+                        .filter(f -> f.isPresent())
+                        .map(f -> f.get())
+                        .collect(Collectors.toCollection(LinkedHashSet::new))
+                );
     }
 
     public static class Builder<T> {
