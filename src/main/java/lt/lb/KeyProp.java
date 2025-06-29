@@ -758,6 +758,7 @@ public abstract class KeyProp {
 
         public PreparedProp(Supplier<List<TolerantConfig>> preparedConfigs, KeyProperty<T> keyProp) {
             this.preparedConfigs = Objects.requireNonNull(preparedConfigs);
+            this.keyProp = keyProp;
         }
 
         protected KeyProperty<T> getDelegated() {
