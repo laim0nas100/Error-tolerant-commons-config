@@ -281,9 +281,9 @@ public abstract class KeyProp {
                 return new ResolvableKeyProperty<>(key, fun);
             }
         }
-        
+
         public PreparedProp<T> toPreparedKeyProperty(Supplier<List<TolerantConfig>> prepared) {
-            return new PreparedProp<>(prepared,toKeyProperty());
+            return new PreparedProp<>(prepared, toKeyProperty());
         }
 
         public CachableDefaultKeyProperty<T> toCachableDefaultProperty() {
@@ -292,9 +292,9 @@ public abstract class KeyProp {
             }
             return new CachableDefaultKeyProperty<>(new ResolvableDefaultKeyProperty<>(key, (T) defaultVal, fun));
         }
-        
+
         public PreparedDefaultProp<T> toPreparedCachableDefaultProperty(Supplier<List<TolerantConfig>> prepared) {
-            return new PreparedDefaultProp<>(prepared,toCachableDefaultProperty());
+            return new PreparedDefaultProp<>(prepared, toCachableDefaultProperty());
         }
 
         public KeyDefaultProperty<T> toKeyDefaultProperty() {
@@ -307,11 +307,11 @@ public abstract class KeyProp {
                 return new ResolvableDefaultKeyProperty<>(key, (T) defaultVal, fun);
             }
         }
-        
+
         public PreparedDefaultProp<T> toPreparedKeyDefaultProperty(Supplier<List<TolerantConfig>> prepared) {
-            return new PreparedDefaultProp<>(prepared,toKeyDefaultProperty());
+            return new PreparedDefaultProp<>(prepared, toKeyDefaultProperty());
         }
-        
+
         public Builder<T> withCachable(boolean cachable) {
             Builder<T> b = new Builder<>(this);
             b.cachable = cachable;
@@ -389,6 +389,15 @@ public abstract class KeyProp {
          */
         public T explicitResolve(TolerantConfig config);
 
+        /**
+         * Return the resolved value associated with this KeyProperty from the
+         * supplied TolerantConfig or null if failed.
+         *
+         * @param config
+         * @return
+         */
+        public T tolerantResolve(TolerantConfig config);
+
         public default <U> KeyProperty<U> map(Function<? super T, ? extends U> mapper) {
             Objects.requireNonNull(mapper);
             KeyProperty<T> me = this;
@@ -406,6 +415,11 @@ public abstract class KeyProp {
                 @Override
                 public U explicitResolve(TolerantConfig config) {
                     return mapper.apply(me.explicitResolve(config));
+                }
+
+                @Override
+                public U tolerantResolve(TolerantConfig config) {
+                    return mapper.apply(me.tolerantResolve(config));
                 }
             };
         }
@@ -448,6 +462,11 @@ public abstract class KeyProp {
                 @Override
                 public U explicitResolve(TolerantConfig config) {
                     return mapper.apply(me.explicitResolve(config));
+                }
+
+                @Override
+                public U tolerantResolve(TolerantConfig config) {
+                    return mapper.apply(me.tolerantResolve(config));
                 }
             };
         }
@@ -493,7 +512,7 @@ public abstract class KeyProp {
                     throw new IllegalArgumentException("TolerantConfig at index " + i + " is null");
                 }
                 if (conf.containsKey(key)) {
-                    T resolved = func.apply(conf);
+                    T resolved = tolerantResolve(conf);
                     if (resolved != null) {
                         return resolved;
                     }
@@ -501,6 +520,12 @@ public abstract class KeyProp {
 
             }
             return getDefault();
+        }
+
+        @Override
+        public T tolerantResolve(TolerantConfig config) {
+            Objects.requireNonNull(config);
+            return func.apply(config);
         }
 
         @Override
@@ -599,7 +624,7 @@ public abstract class KeyProp {
                     throw new IllegalArgumentException("TolerantConfig at index " + i + " is null");
                 }
                 if (conf.containsKey(key)) {
-                    T resolved = fun.apply(conf);
+                    T resolved = tolerantResolve(conf);
                     if (resolved != null) {
                         return resolved;
                     }
@@ -612,6 +637,11 @@ public abstract class KeyProp {
         @Override
         public T explicitResolve(TolerantConfig config) {
             return fun.convert(Objects.requireNonNull(config));
+        }
+        
+        @Override
+        public T tolerantResolve(TolerantConfig config) {
+            return fun.apply(Objects.requireNonNull(config));
         }
 
         @Override
@@ -689,6 +719,11 @@ public abstract class KeyProp {
         @Override
         public String getKey() {
             return resolvable.getKey();
+        }
+
+        @Override
+        public T tolerantResolve(TolerantConfig config) {
+            return resolvable.tolerantResolve(config);
         }
 
     }
@@ -776,7 +811,7 @@ public abstract class KeyProp {
             for (int i = 0; i < configs.size(); i++) {
                 TolerantConfig conf = configs.get(i);
                 if (conf.containsKey(getDelegated().getKey())) {
-                    T resolved = getDelegated().explicitResolve(conf);
+                    T resolved = getDelegated().tolerantResolve(conf);
                     if (resolved != null) {
                         return resolved;
                     }
@@ -800,11 +835,17 @@ public abstract class KeyProp {
         public T explicitResolve(TolerantConfig config) {
             return getDelegated().explicitResolve(config);
         }
+        @Override
+        public T tolerantResolve(TolerantConfig config) {
+            return getDelegated().tolerantResolve(config);
+        }
 
         @Override
         public String getKey() {
             return getDelegated().getKey();
         }
+
+        
     }
 
     public static class PreparedDefaultProp<T> extends PreparedProp<T> implements KeyDefaultProperty<T> {
@@ -825,7 +866,7 @@ public abstract class KeyProp {
             for (int i = 0; i < configs.size(); i++) {
                 TolerantConfig conf = configs.get(i);
                 if (conf.containsKey(getDelegated().getKey())) {
-                    T resolved = getDelegated().explicitResolve(conf);
+                    T resolved = getDelegated().tolerantResolve(conf);
                     if (resolved != null) {
                         return resolved;
                     }
@@ -842,7 +883,7 @@ public abstract class KeyProp {
 
         @Override
         public <U> PreparedDefaultProp<U> map(Function<? super T, ? extends U> mapper) {
-           return new PreparedDefaultProp<>(preparedConfigs, getDelegated().map(Objects.requireNonNull(mapper)));
+            return new PreparedDefaultProp<>(preparedConfigs, getDelegated().map(Objects.requireNonNull(mapper)));
         }
 
         @Override
@@ -850,7 +891,7 @@ public abstract class KeyProp {
             return getDelegated().getDefault();
         }
     }
-    
+
     public static class KP implements KeyProp.KeyVal<Object> {
 
         private final String key;
