@@ -2,6 +2,7 @@ package lt.lb;
 
 import java.math.BigDecimal;
 import java.math.BigInteger;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.EnumSet;
@@ -280,12 +281,20 @@ public abstract class KeyProp {
                 return new ResolvableKeyProperty<>(key, fun);
             }
         }
+        
+        public PreparedProp<T> toPreparedKeyProperty(Supplier<List<TolerantConfig>> prepared) {
+            return new PreparedProp<>(prepared,toKeyProperty());
+        }
 
         public CachableDefaultKeyProperty<T> toCachableDefaultProperty() {
             if (!defaultSet) {
                 throw new IllegalArgumentException("Default value was not set for KeyProperty:" + key);
             }
             return new CachableDefaultKeyProperty<>(new ResolvableDefaultKeyProperty<>(key, (T) defaultVal, fun));
+        }
+        
+        public PreparedDefaultProp<T> toPreparedCachableDefaultProperty(Supplier<List<TolerantConfig>> prepared) {
+            return new PreparedDefaultProp<>(prepared,toCachableDefaultProperty());
         }
 
         public KeyDefaultProperty<T> toKeyDefaultProperty() {
@@ -298,7 +307,11 @@ public abstract class KeyProp {
                 return new ResolvableDefaultKeyProperty<>(key, (T) defaultVal, fun);
             }
         }
-
+        
+        public PreparedDefaultProp<T> toPreparedKeyDefaultProperty(Supplier<List<TolerantConfig>> prepared) {
+            return new PreparedDefaultProp<>(prepared,toKeyDefaultProperty());
+        }
+        
         public Builder<T> withCachable(boolean cachable) {
             Builder<T> b = new Builder<>(this);
             b.cachable = cachable;
@@ -738,6 +751,105 @@ public abstract class KeyProp {
 
     }
 
+    public static class PreparedProp<T> implements KeyProperty<T> {
+
+        protected KeyProperty<T> keyProp;
+        protected Supplier<List<TolerantConfig>> preparedConfigs;
+
+        public PreparedProp(Supplier<List<TolerantConfig>> preparedConfigs, KeyProperty<T> keyProp) {
+            this.preparedConfigs = Objects.requireNonNull(preparedConfigs);
+        }
+
+        protected KeyProperty<T> getDelegated() {
+            return keyProp;
+        }
+
+        protected T combinedResolve(TolerantConfig... prop) {
+            List<TolerantConfig> configs = new ArrayList<>(Arrays.asList(prop));
+            configs.addAll(preparedConfigs.get());
+            configs = configs.stream().filter(Objects::nonNull).collect(Collectors.toList());
+
+            if (configs.isEmpty()) {
+                throw new IllegalArgumentException("No config was provided");
+            }
+            for (int i = 0; i < configs.size(); i++) {
+                TolerantConfig conf = configs.get(i);
+                if (conf.containsKey(getDelegated().getKey())) {
+                    T resolved = getDelegated().explicitResolve(conf);
+                    if (resolved != null) {
+                        return resolved;
+                    }
+                }
+
+            }
+            throw new NoSuchElementException("No elements was found by key:" + getDelegated().getKey() + " is configs:" + Arrays.asList(prop));
+        }
+
+        @Override
+        public T resolve(TolerantConfig... prop) {
+            return combinedResolve(prop);
+        }
+
+        @Override
+        public <U> PreparedProp<U> map(Function<? super T, ? extends U> mapper) {
+            return new PreparedProp<>(preparedConfigs, getDelegated().map(Objects.requireNonNull(mapper)));
+        }
+
+        @Override
+        public T explicitResolve(TolerantConfig config) {
+            return getDelegated().explicitResolve(config);
+        }
+
+        @Override
+        public String getKey() {
+            return getDelegated().getKey();
+        }
+    }
+
+    public static class PreparedDefaultProp<T> extends PreparedProp<T> implements KeyDefaultProperty<T> {
+
+        public PreparedDefaultProp(Supplier<List<TolerantConfig>> preparedConfigs, KeyDefaultProperty<T> keyProp) {
+            super(preparedConfigs, keyProp);
+        }
+
+        @Override
+        protected T combinedResolve(TolerantConfig... prop) {
+            List<TolerantConfig> configs = new ArrayList<>(Arrays.asList(prop));
+            configs.addAll(preparedConfigs.get());
+            configs = configs.stream().filter(Objects::nonNull).collect(Collectors.toList());
+
+            if (configs.isEmpty()) {
+                return getDelegated().getDefault();
+            }
+            for (int i = 0; i < configs.size(); i++) {
+                TolerantConfig conf = configs.get(i);
+                if (conf.containsKey(getDelegated().getKey())) {
+                    T resolved = getDelegated().explicitResolve(conf);
+                    if (resolved != null) {
+                        return resolved;
+                    }
+                }
+
+            }
+            return getDelegated().getDefault();
+        }
+
+        @Override
+        protected KeyDefaultProperty<T> getDelegated() {
+            return (KeyDefaultProperty<T>) super.getDelegated();
+        }
+
+        @Override
+        public <U> PreparedDefaultProp<U> map(Function<? super T, ? extends U> mapper) {
+           return new PreparedDefaultProp<>(preparedConfigs, getDelegated().map(Objects.requireNonNull(mapper)));
+        }
+
+        @Override
+        public T getDefault() {
+            return getDelegated().getDefault();
+        }
+    }
+    
     public static class KP implements KeyProp.KeyVal<Object> {
 
         private final String key;
